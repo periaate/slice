@@ -56,7 +56,7 @@ var expects = []expect{
 	{arg: `[\\2]`,
 		in:  smallIn,
 		out: []int{2, 3, 4, 5, 0, 1}},
-	{arg: `[//2 1:-2]`,
+	{arg: `[//2?1:-2]`,
 		in:  smallIn,
 		out: []int{5, 0, 1}},
 }

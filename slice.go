@@ -7,76 +7,6 @@ import (
 	"strings"
 )
 
-/*
-
-items inside `<>` are optional
-items inside `[]` can be any size, also optional
-`.` is a split operator
-int = [0-9]
-val = <->int
-sel = <val><:><val><=>int
-shf = <sel>{ // | \\ | \ | _ }int
-
-[0]
-[3:]
-[:3]
-[3:5]
-[2:-3]
-[-3:2]
-[=2]
-[1=2]
-[:2=2]
-
-
-
-[0-9]		= values
-`-` 		= `len`  `relative` `negative`	= `[-1]` `[:-10]`
-`=`			= `value` size operator			= `[3=5]` `[-2=10]`
-
-
-`//` = shift right	[0, 1, 2] [//]	-> [2, 0, 1]
-`\\` = shift left	[0, 1, 2] [\\]	-> [1, 2, 0]
-	[1, 2, 3, 4, 5] [//2]			-> [4, 5, 1, 2, 3]
-	[1, 2, 3, 4, 5] [\\2]			-> [3, 4, 5, 1, 2]
-	[1, 2, 3, 4, 5] [//2] [1:-2]	-> [5, 1]
-	[1, 2, 3, 4, 5] [:2//2]			-> [3, 4, 1, 2, 5]
-
-
-
-`_`	= shift into	<src>_<dst> if either undefined, implicit 0
-	[1, 2, 3, 4, 5] [-1_2]	-> [1, 2, 5, 3, 4]
--3_5
-
-
-// `.`		= combine operator (deduplicates) on-hold
-`?!` 	= shuffle operator (randomizes)
-` `		= then operator
-
-:
-=
-//
-\\
-_
-.
-?!
-*/
-
-/*
-<operation>
-<function>
-<combine>
-<...>
-*/
-
-/*
-map args -> matches
-reduce arr -> match(curr) -> curr
-
-split . -> res
-map res -> act
-reduce act arr -> arr
-*/
-
 type Act[T any] func(arr []T, sub []T) (res []T, err error)
 
 func slice[T any](arg string) Act[T] {
@@ -103,14 +33,6 @@ func shiftInto[T any](arg string) Act[T] {
 	}
 }
 
-/*
-operations
-	slices
-
-functions
-	shifts
-*/
-
 func Parse[T any](str string) (act Act[T]) {
 	l := len(str) - 1
 	if str[0] != '[' && str[l] != ']' {
@@ -118,12 +40,7 @@ func Parse[T any](str string) (act Act[T]) {
 	}
 	str = str[1:l]
 
-	shuffle := strings.Contains(str, "?!")
-	if shuffle {
-		return
-	}
-
-	partsU := strings.FieldsFunc(str, func(r rune) bool { return r == ' ' })
+	partsU := strings.FieldsFunc(str, func(r rune) bool { return r == '?' })
 	parts := make([][]string, 0, len(partsU))
 	for _, part := range partsU {
 		parts = append(parts, SplitWithAll(part,
@@ -212,7 +129,7 @@ func shiftParse(arg string) int {
 	return n
 }
 
-func shiftDirection[T any](arr []T, sub []T, by int, R bool) (res []T, err error) {
+func shiftDirection[T any](_ []T, sub []T, by int, R bool) (res []T, err error) {
 	res = sub
 	slog.Debug("moving all")
 	if R {
@@ -229,6 +146,9 @@ func shiftDirection[T any](arr []T, sub []T, by int, R bool) (res []T, err error
 			src := i
 			dst := (len(sub) - by + i) % len(sub)
 			slog.Debug("moving", "src", src, "dst", dst)
+			if dst < 0 {
+				dst += len(sub)
+			}
 			nr[dst] = sub[src]
 		}
 		res = nr
