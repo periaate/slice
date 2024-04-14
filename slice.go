@@ -3,6 +3,7 @@ package slice
 import (
 	"fmt"
 	"log/slog"
+	"math/rand"
 	"strconv"
 	"strings"
 )
@@ -48,6 +49,8 @@ func Parse[T any](str string) (act Act[T]) {
 			`\`,
 			`\\`,
 			`_`,
+			`#`,
+			`-:`,
 		))
 	}
 
@@ -62,6 +65,10 @@ func Parse[T any](str string) (act Act[T]) {
 				acts = append(acts, shiftLeft[T](s))
 			case strings.Contains(s, `_`):
 				acts = append(acts, shiftInto[T](s))
+			case strings.Contains(s, `#`):
+				acts = append(acts, Shuffle[T](s))
+			case strings.Contains(s, `-:`):
+				acts = append(acts, Reverse[T])
 			default:
 				acts = append(acts, slice[T](s))
 			}
@@ -71,9 +78,39 @@ func Parse[T any](str string) (act Act[T]) {
 	return ToAct(acts)
 }
 
+func Reverse[T any](_ []T, sub []T) (res []T, err error) {
+	res = make([]T, 0, len(sub))
+	for i := range sub {
+		res = append(res, sub[len(sub)-1-i])
+	}
+	return
+}
+
+func Shuffle[T any](arg string) Act[T] {
+	var seed int64
+	var err error
+	if len(arg) > 0 {
+		arg = arg[1:]
+		seed, err = strconv.ParseInt(arg, 10, 64)
+		if err != nil {
+			seed = 0
+		}
+	}
+	src := rand.NewSource(seed)
+	return func(arr []T, sub []T) (res []T, err error) {
+		res = append(res, sub...)
+		for i := range res {
+			j := src.Int63() % int64(len(res))
+			res[i], res[j] = res[j], res[i]
+		}
+		return res, nil
+	}
+}
+
 func ToAct[T any](fns []Act[T]) Act[T] {
 	return func(arr []T, sub []T) (res []T, err error) {
-		res = sub[:]
+		res = make([]T, len(sub))
+		copy(res, sub)
 		for _, fn := range fns {
 			res, err = fn(sub, res)
 		}

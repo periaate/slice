@@ -11,7 +11,17 @@ type expect struct {
 	out []int
 }
 
+func sin() []int {
+	return []int{0, 1, 2, 3, 4, 5}
+}
+
 var smallIn = []int{0, 1, 2, 3, 4, 5}
+var shuffleAct = Shuffle[int]("#9")
+
+func shuffledSin(in []int) []int {
+	res, _ := shuffleAct([]int{}, in)
+	return res
+}
 
 var expects = []expect{
 	{arg: "[0]",
@@ -59,6 +69,12 @@ var expects = []expect{
 	{arg: `[//2?1:-2]`,
 		in:  smallIn,
 		out: []int{5, 0, 1}},
+	{arg: `[1:4#9]`,
+		in:  sin(),
+		out: shuffledSin(sin()[1:4])},
+	{arg: `[3:5-:]`,
+		in:  smallIn,
+		out: []int{4, 3}},
 }
 
 func TestSliceLang(t *testing.T) {
