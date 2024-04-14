@@ -1,6 +1,9 @@
 package slice
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
 
 /*
 
@@ -45,6 +48,7 @@ shf = <sel>{ // | \\ | \ | _ }int
 
 `.`		= combine operator (deduplicates)
 `?!` 	= shuffle operator (randomizes)
+` `		= then operator
 
 :
 =
@@ -71,10 +75,9 @@ map res -> act
 reduce act arr -> arr
 */
 
-type act struct {
-}
+type Act[T any] func(arr []T) (res []T, ok bool)
 
-func Slice[T any](r act, arr []T) (res []T, ok bool) {
+func Slice[T any](arr []T) (res []T, ok bool) {
 	// [-2:1] negative direction (loop through start to end)
 
 	return
@@ -92,7 +95,7 @@ functions
 	shifts
 */
 
-func Parse(str string) {
+func Parse[T any](str string) (act Act[T]) {
 	l := len(str) - 1
 	if str[0] != '[' && str[l] != ']' {
 		return
@@ -104,8 +107,41 @@ func Parse(str string) {
 		return
 	}
 
-	sar := strings.FieldsFunc(str, func(r rune) bool {
-		return r == '/' || r == '\\' || r == '_' || r == '.'
-	})
+	sar := SplitWithAll(str,
+		`//`,
+		`\`,
+		`\\`,
+		`_`,
+		` `,
+	)
 
+	for _, s := range sar {
+		isSlice := strings.ContainsAny(s, sliceIdents)
+		isShift := strings.ContainsAny(s, shiftIdents)
+		switch {
+		case isShift:
+			fmt.Println(s)
+		case isSlice:
+			fallthrough
+		default:
+			fmt.Println(s)
+		}
+	}
+
+	return
+}
+
+const (
+	shiftIdents = `/\_`
+	sliceIdents = `:=`
+)
+
+func ToAct[T any](fns []Act[T]) Act[T] {
+	return func(arr []T) (res []T, ok bool) {
+		res = arr[:]
+		for _, fn := range fns {
+			res, ok = fn(res)
+		}
+		return
+	}
 }
