@@ -8,6 +8,16 @@ import (
 	"strings"
 )
 
+const (
+	split     = `.`
+	shiftR    = `//`
+	shiftL    = `\\`
+	shiftLAlt = `\`
+	shiftTo   = `_`
+	shuffle   = `#`
+	reverse   = `-:`
+)
+
 type Act[T any] func(arr []T, sub []T) (res []T, err error)
 
 func slice[T any](arg string) Act[T] {
@@ -41,16 +51,16 @@ func Parse[T any](str string) (act Act[T]) {
 	}
 	str = str[1:l]
 
-	partsU := strings.FieldsFunc(str, func(r rune) bool { return r == '?' })
+	partsU := strings.Split(str, split)
 	parts := make([][]string, 0, len(partsU))
 	for _, part := range partsU {
 		parts = append(parts, SplitWithAll(part,
-			`//`,
-			`\`,
-			`\\`,
-			`_`,
-			`#`,
-			`-:`,
+			shiftR,
+			shiftL,
+			shiftLAlt,
+			shiftTo,
+			shuffle,
+			reverse,
 		))
 	}
 
@@ -59,15 +69,15 @@ func Parse[T any](str string) (act Act[T]) {
 	for _, part := range parts {
 		for _, s := range part {
 			switch {
-			case strings.Contains(s, `//`):
+			case strings.Contains(s, shiftR):
 				acts = append(acts, shiftRight[T](s))
-			case strings.Contains(s, `\`):
+			case strings.Contains(s, shiftLAlt):
 				acts = append(acts, shiftLeft[T](s))
-			case strings.Contains(s, `_`):
+			case strings.Contains(s, shiftTo):
 				acts = append(acts, shiftInto[T](s))
-			case strings.Contains(s, `#`):
+			case strings.Contains(s, shuffle):
 				acts = append(acts, Shuffle[T](s))
-			case strings.Contains(s, `-:`):
+			case strings.Contains(s, reverse):
 				acts = append(acts, Reverse[T])
 			default:
 				acts = append(acts, slice[T](s))
@@ -128,30 +138,65 @@ func ShiftLeft[T any](arg string, arr []T, sub []T) (res []T, err error) {
 
 	return shiftDirection(arr, sub, n, false)
 }
+
 func ShiftInto[T any](arg string, arr []T, sub []T) (res []T, err error) {
-	dst := shiftParse(arg)
+	dst := shiftParse(arg[1:])
+	dst = (len(arr) + dst) % len(arr)
+	start := len(arr) - cap(sub)
+	end := start + len(sub)
 
-	from := len(arr) - cap(sub)
-	to := from + len(sub)
-	res = arr
-
-	if from == to {
+	if dst > start && dst < end {
+		err = fmt.Errorf("destination is within itself")
 		return
 	}
-	if dst >= to && dst < from {
-		err = fmt.Errorf("destination is within the source")
-		return
-	}
-	if dst > to {
-		dst -= len(sub)
+
+	switch {
+	case dst == len(arr)-1:
+		res = append(arr, sub...)
+	case dst == 0:
+		res = append(sub, arr...)
+		start += len(sub)
+		end += len(sub)
+	case dst > end:
+		res = append(arr[:dst], append(sub, arr[dst:]...)...)
+	case dst < start:
+		res = append(arr[:dst], sub...)
+		res = append(res, arr[dst:]...)
+
+		start += len(sub)
+		end += len(sub)
 	}
 
-	dst = Clamp(dst, 0, len(sub))
-
-	res = append(res[:dst], append(sub, res[dst:]...)...)
+	res = append(res[:start], res[end:]...)
 
 	return
 }
+
+// func ShiftInto[T any](arg string, arr []T, sub []T) (res []T, err error) {
+// 	dst := shiftParse(arg[1:])
+// 	if dst < 0 {
+// 		dst = len(arr) + dst
+// 	}
+// 	fmt.Println(dst, len(arr), len(sub))
+
+// 	from := len(arr) - (cap(arr) - cap(sub))
+// 	to := from + len(sub)
+// 	res = arr
+
+// 	if from == to {
+// 		return
+// 	}
+// 	if dst >= to && dst < from {
+// 		err = fmt.Errorf("destination is within the source")
+// 		return
+// 	}
+
+// 	dst = dst % len(arr)
+
+// 	res = append(res[:to], append(sub, res[dst:]...)...)
+
+// 	return
+// }
 
 func shiftParse(arg string) int {
 	arg = strings.TrimLeft(arg, `/`)

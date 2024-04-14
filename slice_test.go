@@ -2,6 +2,7 @@ package slice
 
 import (
 	"fmt"
+	"log/slog"
 	"testing"
 )
 
@@ -66,7 +67,7 @@ var expects = []expect{
 	{arg: `[\\2]`,
 		in:  smallIn,
 		out: []int{2, 3, 4, 5, 0, 1}},
-	{arg: `[//2?1:-2]`,
+	{arg: `[//2.1:-2]`,
 		in:  smallIn,
 		out: []int{5, 0, 1}},
 	{arg: `[1:4#9]`,
@@ -75,9 +76,19 @@ var expects = []expect{
 	{arg: `[3:5-:]`,
 		in:  smallIn,
 		out: []int{4, 3}},
+	{arg: `[2_-1]`,
+		in:  smallIn,
+		out: []int{0, 1, 3, 4, 5, 2}},
+	{arg: `[-3_-1]`,
+		in:  smallIn,
+		out: []int{0, 1, 2, 4, 5, 3}},
+	{arg: `[5_0]`,
+		in:  smallIn,
+		out: []int{5, 0, 1, 2, 3, 4}},
 }
 
 func TestSliceLang(t *testing.T) {
+	slog.SetLogLoggerLevel(slog.LevelDebug)
 	// sar := []string{
 	// 	"[1]",
 	// 	"[3:5]",
