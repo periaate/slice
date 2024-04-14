@@ -2,14 +2,6 @@ package slice
 
 import "sort"
 
-// SplitWithAll splits given string into an array, using all other `match` strings as
-// delimiters. String is matched using the longest delimiter first.
-// If no match strings are given, the original string is returned.
-// If no matches are found, the original string is returned.
-// Matched delimiters are not included in the result.
-// If a found match would add a zero-length string to the result, it is ignored.
-// Any consecutive matches are treated as one.
-// If an empty match string is given (i.e. ""), every character is split.
 func SplitWithAll(str string, match ...string) (res []string) {
 	if len(match) == 0 || len(str) == 0 {
 		return []string{str}
@@ -35,7 +27,7 @@ func SplitWithAll(str string, match ...string) (res []string) {
 				res = append(res, str[lastI:i])
 			}
 
-			lastI = i + len(pattern)
+			lastI = i
 			if len(pattern) != 0 {
 				i += len(pattern) - 1
 			}
