@@ -85,6 +85,9 @@ var expects = []expect{
 	{arg: `[5_0]`,
 		in:  smallIn,
 		out: []int{5, 0, 1, 2, 3, 4}},
+	{arg: `[-1_]`,
+		in:  smallIn,
+		out: []int{5, 0, 1, 2, 3, 4}},
 }
 
 func TestSliceLang(t *testing.T) {

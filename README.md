@@ -3,7 +3,7 @@
 ```
 `0`		`<index>`		index access
 `1:2`	`<from>:<to>`	slice
-`5:3`	`<from>:<to>`	slice wrap around
+`5:3`	`<from>:<to>`	slice wrap around [5, 6, ..., 0, 1, 2]
 `:3`	`:<to>`			implicit from (equal to 0)
 `3:`	`<from>:`		implicit to (equal to length)
 `3:-1`	`<from>:<to>`	length relative slice
@@ -22,8 +22,10 @@ example value:
 
 We want all `y` values from that array.
 
-[-3_-1//2.:4]			shift left by 1, slice from 0 to 3
+[-3_-1//2.:4]			select -3 (5y), shift into last place: [..., 6n, 7y, 5y]. Shift right twice [7y, 5y, 0y, 1y, ...] slice first 4.
 
+
+[?5_//:?2]
 
 
 

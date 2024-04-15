@@ -140,7 +140,11 @@ func ShiftLeft[T any](arg string, arr []T, sub []T) (res []T, err error) {
 }
 
 func ShiftInto[T any](arg string, arr []T, sub []T) (res []T, err error) {
-	dst := shiftParse(arg[1:])
+	var dst int
+	if len(arg[1:]) != 0 {
+		dst = shiftParse(arg[1:])
+	}
+
 	dst = (len(arr) + dst) % len(arr)
 	start := len(arr) - cap(sub)
 	end := start + len(sub)
