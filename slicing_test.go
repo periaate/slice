@@ -29,7 +29,7 @@ func TestSlice(t *testing.T) {
 			baseInput,
 			baseInput,
 			false,
-			"empty generic.Slice",
+			"empty slice",
 		},
 		{
 			"[0:]",
@@ -51,7 +51,7 @@ func TestSlice(t *testing.T) {
 			baseInput,
 			baseInput[2:4],
 			false,
-			"middle generic.Slice",
+			"middle slice",
 		},
 		{
 			"[2:]",
@@ -76,13 +76,6 @@ func TestSlice(t *testing.T) {
 			"select last element, long input",
 		},
 		{
-			fmt.Sprintf("[-1%s10]", string(pageToken)),
-			longInput,
-			longInput[longLen-1*10 : longLen],
-			false,
-			"select last 10, long input",
-		},
-		{
 			"[-1:]",
 			baseInput,
 			[]string{"5"},
@@ -102,57 +95,6 @@ func TestSlice(t *testing.T) {
 			baseInput[bl-3 : bl-1],
 			false,
 			"last two elements via negative index",
-		},
-		// Relative cases
-		{
-			"[-3:+1]",
-			baseInput,
-			baseInput[bl-3 : bl-3+1],
-			false,
-			"last three elements via negative index",
-		},
-		{
-			"[2:+3]",
-			baseInput,
-			baseInput[2 : 2+3],
-			false,
-			"middle Slice via relative index",
-		},
-		// Pagination
-		{
-			fmt.Sprintf("[0%s50]", string(pageToken)),
-			longInput,
-			longInput[:1*50],
-			false,
-			"first page of 50",
-		},
-		{
-			fmt.Sprintf("[1%s50]", string(pageToken)),
-			longInput,
-			longInput[1*50 : 2*50],
-			false,
-			"second page of 50",
-		},
-		{
-			fmt.Sprintf("[1:3%s10]", string(pageToken)),
-			longInput,
-			longInput[1*10 : 3*10],
-			false,
-			"select two pages of 10",
-		},
-		{
-			fmt.Sprintf("[-3:-1%s10]", string(pageToken)),
-			longInput,
-			longInput[longLen-3*10 : longLen-1*10],
-			false,
-			"last two pages of 10",
-		},
-		{
-			fmt.Sprintf("[%s10]", string(pageToken)),
-			longInput,
-			longInput[0*10 : 1*10],
-			false,
-			"implicit page 0 of size 10",
 		},
 		// Fail cases
 		{

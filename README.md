@@ -25,8 +25,6 @@ We want all `y` values from that array.
 [-3_-1//2.:4]			select -3 (5y), shift into last place: [..., 6n, 7y, 5y]. Shift right twice [7y, 5y, 0y, 1y, ...] slice first 4.
 
 
-[?5_//:?2]
-
 
 
 ```

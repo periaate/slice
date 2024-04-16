@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const (
@@ -96,6 +97,14 @@ func Reverse[T any](_ []T, sub []T) (res []T, err error) {
 	return
 }
 
+func randSeed(seed int64) *rand.Rand {
+	if seed <= 0 {
+		seed = time.Now().UnixNano()
+	}
+	source := rand.NewSource(seed)
+	return rand.New(source)
+}
+
 func Shuffle[T any](arg string) Act[T] {
 	var seed int64
 	var err error
@@ -106,7 +115,7 @@ func Shuffle[T any](arg string) Act[T] {
 			seed = 0
 		}
 	}
-	src := rand.NewSource(seed)
+	src := randSeed(seed)
 	return func(arr []T, sub []T) (res []T, err error) {
 		res = append(res, sub...)
 		for i := range res {
@@ -151,6 +160,7 @@ func ShiftInto[T any](arg string, arr []T, sub []T) (res []T, err error) {
 
 	if dst > start && dst < end {
 		err = fmt.Errorf("destination is within itself")
+		slog.Error("error in shift into", "error", err)
 		return
 	}
 
