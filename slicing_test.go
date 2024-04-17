@@ -60,6 +60,13 @@ func TestSlice(t *testing.T) {
 			false,
 			"from middle",
 		},
+		{
+			"[5]",
+			baseInput,
+			[]string{baseInput[5]},
+			false,
+			"from middle",
+		},
 		// Negative index
 		{
 			"[-1]",
@@ -67,6 +74,13 @@ func TestSlice(t *testing.T) {
 			[]string{"5"},
 			false,
 			"select last element",
+		},
+		{
+			"[-2]",
+			baseInput,
+			[]string{"4"},
+			false,
+			"select second last element",
 		},
 		{
 			"[-10]",
