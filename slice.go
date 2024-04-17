@@ -1,8 +1,6 @@
 package slice
 
 import (
-	"fmt"
-	"log/slog"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -13,239 +11,150 @@ const (
 	split     = `.`
 	shiftR    = `//`
 	shiftL    = `\\`
-	shiftLAlt = `\`
-	shiftTo   = `_`
-	shuffle   = `#`
-	reverse   = `-:`
+	randomize = `#`
 )
 
-type Act[T any] func(arr []T, sub []T) (res []T, err error)
+type Act[T any] func(pat string, arr []T) (res []T, err error)
+type actArgs[T any] struct {
+	Arg string
+	Fn  Act[T]
+}
 
-func slice[T any](arg string) Act[T] {
-	return func(arr []T, sub []T) (res []T, err error) {
-		return Slice("["+arg+"]", sub)
+type Expression[T any] struct {
+	Syntax map[string]Act[T]
+	acts   []actArgs[T]
+}
+
+func (e *Expression[T]) Eval(arr []T) (res []T, err error) {
+	for _, fn := range e.acts {
+		arr, err = fn.Fn(fn.Arg, arr)
+	}
+	return arr, err
+}
+
+func NewExpression[T any]() *Expression[T] {
+	syn := map[string]Act[T]{
+		shiftR:    ShiftRight[T],
+		shiftL:    ShiftLeft[T],
+		randomize: shuffle[T],
+	}
+	return &Expression[T]{
+		Syntax: syn,
+		acts:   make([]actArgs[T], 0),
 	}
 }
 
-func shiftRight[T any](arg string) Act[T] {
-	return func(arr []T, sub []T) (res []T, err error) {
-		return ShiftRight[T](arg, arr, sub)
+func (e *Expression[T]) Parse(pat string) {
+	l := len(pat) - 1
+	if pat[0] == '[' && pat[l] == ']' {
+		pat = pat[1:l]
 	}
-}
 
-func shiftLeft[T any](arg string) Act[T] {
-	return func(arr []T, sub []T) (res []T, err error) {
-		return ShiftLeft[T](arg, arr, sub)
-	}
-}
-
-func shiftInto[T any](arg string) Act[T] {
-	return func(arr []T, sub []T) (res []T, err error) {
-		return ShiftInto[T](arg, arr, sub)
-	}
-}
-
-func Parse[T any](str string) (act Act[T]) {
-	l := len(str) - 1
-	if str[0] != '[' && str[l] != ']' {
-		return
-	}
-	str = str[1:l]
-
-	partsU := strings.Split(str, split)
+	partsU := strings.Split(pat, split)
 	parts := make([][]string, 0, len(partsU))
-	for _, part := range partsU {
-		parts = append(parts, SplitWithAll(part,
-			shiftR,
-			shiftL,
-			shiftLAlt,
-			shiftTo,
-			shuffle,
-			reverse,
-		))
+
+	keys := make([]string, 0, len(e.Syntax))
+	for k := range e.Syntax {
+		keys = append(keys, k)
 	}
 
-	acts := make([]Act[T], 0)
+	for _, part := range partsU {
+		parts = append(parts, SplitWithAll(part, keys...))
+	}
 
 	for _, part := range parts {
-		for _, s := range part {
+		for _, pat := range part {
+			fn, ok := e.Find(pat)
 			switch {
-			case strings.Contains(s, shiftR):
-				acts = append(acts, shiftRight[T](s))
-			case strings.Contains(s, shiftLAlt):
-				acts = append(acts, shiftLeft[T](s))
-			case strings.Contains(s, shiftTo):
-				acts = append(acts, shiftInto[T](s))
-			case strings.Contains(s, shuffle):
-				acts = append(acts, Shuffle[T](s))
-			case strings.Contains(s, reverse):
-				acts = append(acts, Reverse[T])
+			case ok:
+				e.acts = append(e.acts, actArgs[T]{pat, fn})
 			default:
-				acts = append(acts, slice[T](s))
+				e.acts = append(e.acts, actArgs[T]{pat,
+					func(pat string, arr []T) (res []T, err error) {
+						return FromPattern(pat, arr)
+					}})
 			}
 		}
 	}
-
-	return ToAct(acts)
 }
 
-func Reverse[T any](_ []T, sub []T) (res []T, err error) {
-	res = make([]T, 0, len(sub))
-	for i := range sub {
-		res = append(res, sub[len(sub)-1-i])
+func (e *Expression[T]) Find(pat string) (Act[T], bool) {
+	for k, v := range e.Syntax {
+		if strings.Contains(pat, k) {
+			return v, true
+		}
 	}
-	return
+	return nil, false
 }
 
-func randSeed(seed int64) *rand.Rand {
-	if seed <= 0 {
-		seed = time.Now().UnixNano()
-	}
-	source := rand.NewSource(seed)
-	return rand.New(source)
-}
-
-func Shuffle[T any](arg string) Act[T] {
+func shuffle[T any](pat string, arr []T) (res []T, err error) {
 	var seed int64
-	var err error
-	if len(arg) > 0 {
-		arg = arg[1:]
-		seed, err = strconv.ParseInt(arg, 10, 64)
+	if len(pat) > 0 {
+		pat = pat[1:]
+		seed, err = strconv.ParseInt(pat, 10, 64)
 		if err != nil {
 			seed = 0
 		}
 	}
-	src := randSeed(seed)
-	return func(arr []T, sub []T) (res []T, err error) {
-		res = append(res, sub...)
-		for i := range res {
-			j := src.Int63() % int64(len(res))
-			res[i], res[j] = res[j], res[i]
+	if seed <= 0 {
+		seed = time.Now().UnixNano()
+	}
+	src := rand.NewSource(seed)
+
+	res = append(res, arr...)
+	for i := range res {
+		j := src.Int63() % int64(len(res))
+		res[i], res[j] = res[j], res[i]
+	}
+	return res, nil
+}
+
+func ShiftRight[T any](arg string, arr []T) (res []T, err error) {
+	var n int
+	arg = strings.ReplaceAll(arg, `/`, "")
+
+	if len(arg) > 0 {
+		n, err = strconv.Atoi(arg)
+		if err != nil {
+			return arr, err
 		}
-		return res, nil
 	}
+	return shiftDirection(arr, n, true)
 }
+func ShiftLeft[T any](arg string, arr []T) (res []T, err error) {
+	var n int
+	arg = strings.ReplaceAll(arg, `\`, "")
 
-func ToAct[T any](fns []Act[T]) Act[T] {
-	return func(arr []T, sub []T) (res []T, err error) {
-		res = make([]T, len(sub))
-		copy(res, sub)
-		for _, fn := range fns {
-			res, err = fn(sub, res)
+	if len(arg) > 0 {
+		n, err = strconv.Atoi(arg)
+		if err != nil {
+			return arr, err
 		}
-		return
 	}
+	return shiftDirection(arr, n, false)
 }
 
-func ShiftRight[T any](arg string, arr []T, sub []T) (res []T, err error) {
-	n := shiftParse(arg)
-
-	return shiftDirection(arr, sub, n, true)
-}
-func ShiftLeft[T any](arg string, arr []T, sub []T) (res []T, err error) {
-	n := shiftParse(arg)
-
-	return shiftDirection(arr, sub, n, false)
-}
-
-func ShiftInto[T any](arg string, arr []T, sub []T) (res []T, err error) {
-	var dst int
-	if len(arg[1:]) != 0 {
-		dst = shiftParse(arg[1:])
+func shiftDirection[T any](arr []T, by int, R bool) (res []T, err error) {
+	if by < 1 {
+		by = 1
 	}
-
-	dst = (len(arr) + dst) % len(arr)
-	start := len(arr) - cap(sub)
-	end := start + len(sub)
-
-	if dst > start && dst < end {
-		err = fmt.Errorf("destination is within itself")
-		slog.Error("error in shift into", "error", err)
-		return
-	}
-
-	switch {
-	case dst == len(arr)-1:
-		res = append(arr, sub...)
-	case dst == 0:
-		res = append(sub, arr...)
-		start += len(sub)
-		end += len(sub)
-	case dst > end:
-		res = append(arr[:dst], append(sub, arr[dst:]...)...)
-	case dst < start:
-		res = append(arr[:dst], sub...)
-		res = append(res, arr[dst:]...)
-
-		start += len(sub)
-		end += len(sub)
-	}
-
-	res = append(res[:start], res[end:]...)
-
-	return
-}
-
-// func ShiftInto[T any](arg string, arr []T, sub []T) (res []T, err error) {
-// 	dst := shiftParse(arg[1:])
-// 	if dst < 0 {
-// 		dst = len(arr) + dst
-// 	}
-// 	fmt.Println(dst, len(arr), len(sub))
-
-// 	from := len(arr) - (cap(arr) - cap(sub))
-// 	to := from + len(sub)
-// 	res = arr
-
-// 	if from == to {
-// 		return
-// 	}
-// 	if dst >= to && dst < from {
-// 		err = fmt.Errorf("destination is within the source")
-// 		return
-// 	}
-
-// 	dst = dst % len(arr)
-
-// 	res = append(res[:to], append(sub, res[dst:]...)...)
-
-// 	return
-// }
-
-func shiftParse(arg string) int {
-	arg = strings.TrimLeft(arg, `/`)
-	arg = strings.TrimLeft(arg, `\`)
-	if len(arg) == 0 {
-		return 1
-	}
-	n, err := strconv.Atoi(arg)
-	if err != nil {
-		return 0
-	}
-	return n
-}
-
-func shiftDirection[T any](_ []T, sub []T, by int, R bool) (res []T, err error) {
-	res = sub
-	slog.Debug("moving all")
+	res = arr
 	if R {
-		nr := make([]T, len(sub))
-		for i := 0; i < len(sub); i++ {
-			j := (i + by) % len(sub)
-			slog.Debug("moving", "src", i, "dst", j)
-			nr[j] = sub[i]
+		nr := make([]T, len(arr))
+		for i := 0; i < len(arr); i++ {
+			j := (i + by) % len(arr)
+			nr[j] = arr[i]
 		}
 		res = nr
 	} else {
-		nr := make([]T, len(sub))
-		for i := 0; i < len(sub); i++ {
+		nr := make([]T, len(arr))
+		for i := 0; i < len(arr); i++ {
 			src := i
-			dst := (len(sub) - by + i) % len(sub)
-			slog.Debug("moving", "src", src, "dst", dst)
+			dst := (len(arr) - by + i) % len(arr)
 			if dst < 0 {
-				dst += len(sub)
+				dst += len(arr)
 			}
-			nr[dst] = sub[src]
+			nr[dst] = arr[src]
 		}
 		res = nr
 	}

@@ -73,7 +73,7 @@ func TestSlice(t *testing.T) {
 			longInput,
 			[]string{"990"},
 			false,
-			"select last element, long input",
+			"select -10th element, long input",
 		},
 		{
 			"[-1:]",
@@ -122,7 +122,7 @@ func TestSlice(t *testing.T) {
 
 	for _, e := range exp {
 		t.Run(e.description, func(t *testing.T) {
-			out, err := Slice(e.pattern, e.input)
+			out, err := FromPattern(e.pattern, e.input)
 			if err != nil && !e.fail {
 				t.Errorf("unexpected error: %v", err)
 			}
