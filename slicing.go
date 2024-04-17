@@ -16,6 +16,7 @@ func Slice[T any](from, to, l int, inp []T) (res []T) {
 	// toC := to
 	from = c.SmartClamp(from, l)
 	to = c.SmartClamp(to, l)
+
 	if from > to {
 		return inp[to:from]
 	}
