@@ -50,7 +50,7 @@ func ParseTimeSlice(pat string) (from, to int64, err error) {
 	case len(pat) - 1: // to any
 		from, _ = Parse(spl[0])
 	case 0: // from any
-		to, _ = Parse(pat)
+		to, _ = Parse(spl[1])
 	default:
 		from, _ = Parse(spl[0])
 		to, _ = Parse(spl[1])
@@ -58,7 +58,7 @@ func ParseTimeSlice(pat string) (from, to int64, err error) {
 	return
 }
 
-func Parse(pat string, base ...int64) (unixT, off int64) {
+func Parse(pat string) (unixT, off int64) {
 	ng := pat[0] == '-'
 	if ng {
 		pat = pat[1:]
@@ -66,27 +66,43 @@ func Parse(pat string, base ...int64) (unixT, off int64) {
 	spl := common.SplitWithAll(pat, false, "/", "y", "m", "d")
 	cnt := strings.Count(pat, "/")
 
+	yb := strings.Contains(pat, "y")
+	mb := strings.Contains(pat, "m")
+	db := strings.Contains(pat, "d")
+
 	switch {
-	case cnt == 2 || strings.Contains(pat, "d"):
+	case cnt == 2 || db:
 		off = d
-	case cnt == 1 || strings.Contains(pat, "m"):
+	case cnt == 1 || mb:
 		off = m
-	case cnt == 0 || strings.Contains(pat, "y"):
+	case cnt == 0 || yb:
 		off = y
 	}
 
-	unixT = TimeI(Map(Int[int64], spl)...)
-
+	var fn func(vals ...int64) int64
+	fn = timeI[int64]
 	if ng {
-		if len(base) == 0 {
-			base = append(base, time.Now().Unix())
-		}
-		unixT = base[0] - unixT
+		fn = relTimeI[int64]
+	}
+
+	ints := mMap(mustInt[int64], spl)
+
+	switch {
+	case yb && db && len(ints) == 2:
+		unixT = fn(ints[0], 0, ints[1])
+	case mb && db && len(ints) == 2:
+		unixT = fn(0, ints[0], ints[1])
+	case mb && len(ints) == 1:
+		unixT = fn(0, ints[0])
+	case db && len(ints) == 1:
+		unixT = fn(0, 0, ints[0])
+	default:
+		unixT = fn(ints...)
 	}
 	return unixT, unixT + off
 }
 
-func Map[A any, B any](f func(A) B, arr []A) []B {
+func mMap[A any, B any](f func(A) B, arr []A) []B {
 	res := make([]B, len(arr))
 	for i, v := range arr {
 		res[i] = f(v)
@@ -94,7 +110,7 @@ func Map[A any, B any](f func(A) B, arr []A) []B {
 	return res
 }
 
-func Int[I constraints.Integer](pat string) I {
+func mustInt[I constraints.Integer](pat string) I {
 	i, err := strconv.ParseInt(pat, 10, 64)
 	if err != nil {
 		return I(0)
@@ -102,11 +118,11 @@ func Int[I constraints.Integer](pat string) I {
 	return I(i)
 }
 
-type Timeable interface {
+type timeable interface {
 	~int | ~int32 | ~int64 | ~uint32 | ~uint64
 }
 
-func TimeI[N Timeable](vals ...N) N {
+func timeI[N timeable](vals ...N) N {
 	var unixT N
 	for i, v := range vals {
 		switch i {
@@ -116,6 +132,23 @@ func TimeI[N Timeable](vals ...N) N {
 			unixT += v * N(m)
 		case 2:
 			unixT += v * N(d)
+		default:
+			return unixT
+		}
+	}
+	return unixT
+}
+
+func relTimeI[N timeable](vals ...N) N {
+	var unixT N
+	for i, v := range vals {
+		switch i {
+		case 0:
+			unixT += N(time.Now().Unix()) - N(time.Now().Year()) - v*N(y)
+		case 1:
+			unixT += N(time.Now().Unix()) - N(time.Now().Month()) - v*N(m)
+		case 2:
+			unixT += N(time.Now().Unix()) - N(time.Now().Day()) - v*N(d)
 		default:
 			return unixT
 		}
