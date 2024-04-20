@@ -48,6 +48,12 @@ var expects = []expect{
 	{arg: `[1:4#9]`,
 		in:  getArr(),
 		out: getShuffledArr(getArr()[1:4])},
+	// {arg: `[1:4][0]`,
+	// 	in:  getArr(),
+	// 	out: []int{1}},
+	// {arg: `[:5][0_2_4]`,
+	// 	in:  getArr(),
+	// 	out: []int{0, 2, 4}},
 }
 
 func TestSliceLang(t *testing.T) {
